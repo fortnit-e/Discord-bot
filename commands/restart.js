@@ -1,9 +1,4 @@
 import { EmbedBuilder } from 'discord.js';
-import { exec } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default {
     name: 'restart',
@@ -35,22 +30,15 @@ export default {
 
             const statusMessage = await message.channel.send({ embeds: [embed] });
 
-            // Save restart info to .env file
+            // Store message info for updating after restart
             process.env.RESTART_CHANNEL = message.channel.id;
             process.env.RESTART_MESSAGE = statusMessage.id;
 
-            // Get the path to restart.bat
-            const restartScript = path.join(__dirname, '..', 'restart.bat');
+            // Log the restart attempt
+            console.log(`Bot restart initiated by ${message.author.tag}`);
 
-            // Start the restart script in a new window
-            exec(`start cmd.exe /c "${restartScript}"`, (error) => {
-                if (error) {
-                    console.error(`Error during restart: ${error}`);
-                    return;
-                }
-                // Exit current instance
-                process.exit();
-            });
+            // Exit process - Railway will automatically restart it
+            process.exit(0);
 
         } catch (error) {
             console.error('Error in restart command:', error);

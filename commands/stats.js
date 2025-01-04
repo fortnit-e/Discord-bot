@@ -1,3 +1,5 @@
+import { EmbedBuilder } from 'discord.js';
+
 export default {
     name: 'stats',
     description: 'Show user statistics',

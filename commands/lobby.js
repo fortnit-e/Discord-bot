@@ -90,6 +90,10 @@ export default {
           await logChannel.send({ embeds: [logEmbed] });
       }
 
+      // Set cooldown after successful creation
+      const cooldownTime = 30000; // 30 seconds
+      message.client.cooldowns.setCooldown(message.author.id, 'lobby', cooldownTime);
+
     } catch (error) {
       console.error('Error creating lobby channels:', error);
       await message.reply('There was an error setting up the lobby. Please try again.');

@@ -4,6 +4,7 @@ import { loadEvents } from './handlers/eventHandler.js';
 import { loadCommands } from './handlers/commandHandler.js';
 import { spawn } from 'child_process';
 import express from 'express';
+import { CooldownManager } from './utils/cooldownManager.js';
 
 config(); // Load environment variables
 
@@ -82,3 +83,6 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// Add after creating the client
+client.cooldowns = new CooldownManager();

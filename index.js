@@ -52,14 +52,32 @@ client.on('ready', async () => {
                 return;
             }
 
+            // Calculate restart duration
+            const restartDuration = process.env.RESTART_TIME ? 
+                Math.floor((Date.now() - parseInt(process.env.RESTART_TIME)) / 1000) :
+                'Unknown';
+
             const successEmbed = new EmbedBuilder()
                 .setColor('Green')
-                .setTitle('✅ Bot Restarted')
-                .setDescription('Bot has successfully restarted!')
+                .setTitle('✅ Bot Restarted Successfully')
+                .setDescription(
+                    '**Status:**\n' +
+                    '• Bot is now online and operational\n' +
+                    '• All systems functioning normally\n\n' +
+                    `**Restart Duration:**\n` +
+                    `• Completed in ${restartDuration} seconds\n\n` +
+                    '**Ready:**\n' +
+                    '• Bot is now accepting commands'
+                )
                 .setTimestamp();
 
             await message.edit({ embeds: [successEmbed] });
             console.log('Updated restart message successfully');
+
+            // Clear restart environment variables
+            delete process.env.RESTART_CHANNEL;
+            delete process.env.RESTART_MESSAGE;
+            delete process.env.RESTART_TIME;
 
         } catch (error) {
             console.error('Error updating restart message:', error);

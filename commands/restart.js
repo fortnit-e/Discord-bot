@@ -17,18 +17,20 @@ export default {
         }
 
         try {
-            // Send confirmation message
+            // Send initial status message
             const embed = new EmbedBuilder()
                 .setColor('Yellow')
-                .setTitle('🔄 Bot Restart Initiated')
+                .setTitle('🔄 Bot Restart Sequence')
                 .setDescription(
-                    '**Status:**\n' +
-                    '• Saving state...\n' +
-                    '• Preparing for restart...\n\n' +
-                    '**Estimated Time:**\n' +
-                    '• Bot should be back in ~30 seconds\n\n' +
-                    '**Note:**\n' +
-                    '• If bot doesn\'t respond after 1 minute, please contact an administrator.'
+                    '**Current Status:**\n' +
+                    '• Initiating restart sequence...\n' +
+                    '• Saving current state...\n\n' +
+                    '**Important:**\n' +
+                    '• Please wait while Railway redeploys the bot\n' +
+                    '• This may take 1-2 minutes\n\n' +
+                    '**Troubleshooting:**\n' +
+                    '• If bot is offline > 3 minutes, check Railway dashboard\n' +
+                    '• Contact administrator if issues persist'
                 )
                 .setFooter({ 
                     text: `Requested by ${message.author.tag}`,
@@ -38,18 +40,39 @@ export default {
 
             const statusMessage = await message.channel.send({ embeds: [embed] });
 
-            // Store message info in environment variables
-            process.env.RESTART_CHANNEL = message.channel.id;
-            process.env.RESTART_MESSAGE = statusMessage.id;
-            process.env.RESTART_TIME = Date.now().toString();
+            // Update status to shutting down
+            setTimeout(async () => {
+                const updatedEmbed = new EmbedBuilder()
+                    .setColor('Orange')
+                    .setTitle('🔄 Bot Shutting Down')
+                    .setDescription(
+                        '**Status Update:**\n' +
+                        '• Bot is shutting down...\n' +
+                        '• Waiting for Railway redeploy...\n\n' +
+                        '**Please Note:**\n' +
+                        '• Bot will be offline briefly\n' +
+                        '• Status will update when back online'
+                    )
+                    .setFooter({ 
+                        text: `Requested by ${message.author.tag}`,
+                        iconURL: message.author.displayAvatarURL()
+                    })
+                    .setTimestamp();
 
-            // Log the restart attempt
-            console.log(`Bot restart initiated by ${message.author.tag} at ${new Date().toISOString()}`);
+                await statusMessage.edit({ embeds: [updatedEmbed] });
 
-            // Wait 2 seconds before exiting to ensure message is sent
-            setTimeout(() => {
-                process.exit(0);
-            }, 2000);
+                // Store message info
+                process.env.RESTART_CHANNEL = message.channel.id;
+                process.env.RESTART_MESSAGE = statusMessage.id;
+                process.env.RESTART_TIME = Date.now().toString();
+                process.env.RESTART_REQUESTER = message.author.tag;
+
+                // Exit after ensuring message is updated
+                setTimeout(() => {
+                    console.log(`Bot restart initiated by ${message.author.tag} at ${new Date().toISOString()}`);
+                    process.exit(0);
+                }, 1000);
+            }, 3000);
 
         } catch (error) {
             console.error('Error in restart command:', error);

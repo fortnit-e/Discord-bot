@@ -5,6 +5,7 @@ import { loadCommands } from './handlers/commandHandler.js';
 import { spawn } from 'child_process';
 import express from 'express';
 import { CooldownManager } from './utils/cooldownManager.js';
+import { setTimeout as wait } from 'timers/promises';
 
 config(); // Load environment variables
 
@@ -37,50 +38,59 @@ client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     console.log('Bot is starting...');
 
-    // Check if we need to update a restart message
+    // Check if this is a restart
     if (process.env.RESTART_CHANNEL && process.env.RESTART_MESSAGE) {
         try {
-            const channel = await client.channels.fetch(process.env.RESTART_CHANNEL);
+            // Add retry logic for fetching channel and message
+            let channel;
+            let retries = 0;
+            const maxRetries = 3;
+
+            while (!channel && retries < maxRetries) {
+                try {
+                    channel = await client.channels.fetch(process.env.RESTART_CHANNEL);
+                } catch (error) {
+                    retries++;
+                    await wait(2000); // Wait 2 seconds between retries
+                }
+            }
+
             if (!channel) {
-                console.error('Could not find restart channel');
+                console.error('Failed to fetch restart channel after retries');
                 return;
             }
 
             const message = await channel.messages.fetch(process.env.RESTART_MESSAGE);
-            if (!message) {
-                console.error('Could not find restart message');
-                return;
-            }
-
-            // Calculate restart duration
             const restartDuration = process.env.RESTART_TIME ? 
                 Math.floor((Date.now() - parseInt(process.env.RESTART_TIME)) / 1000) :
                 'Unknown';
 
             const successEmbed = new EmbedBuilder()
                 .setColor('Green')
-                .setTitle('✅ Bot Restarted Successfully')
+                .setTitle('✅ Bot Online')
                 .setDescription(
                     '**Status:**\n' +
-                    '• Bot is now online and operational\n' +
-                    '• All systems functioning normally\n\n' +
-                    `**Restart Duration:**\n` +
-                    `• Completed in ${restartDuration} seconds\n\n` +
+                    '• Restart completed successfully\n' +
+                    '• All systems operational\n\n' +
+                    `**Details:**\n` +
+                    `• Restart duration: ${restartDuration} seconds\n` +
+                    `• Requested by: ${process.env.RESTART_REQUESTER || 'Unknown'}\n\n` +
                     '**Ready:**\n' +
                     '• Bot is now accepting commands'
                 )
                 .setTimestamp();
 
             await message.edit({ embeds: [successEmbed] });
-            console.log('Updated restart message successfully');
+            console.log('Restart completed successfully');
 
-            // Clear restart environment variables
+            // Clear restart variables
             delete process.env.RESTART_CHANNEL;
             delete process.env.RESTART_MESSAGE;
             delete process.env.RESTART_TIME;
+            delete process.env.RESTART_REQUESTER;
 
         } catch (error) {
-            console.error('Error updating restart message:', error);
+            console.error('Error during restart completion:', error);
         }
     }
 });

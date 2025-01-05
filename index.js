@@ -6,6 +6,9 @@ import { spawn } from 'child_process';
 import express from 'express';
 import { CooldownManager } from './utils/cooldownManager.js';
 import { setTimeout as wait } from 'timers/promises';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 config(); // Load environment variables
 
@@ -38,60 +41,42 @@ client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     console.log('Bot is starting...');
 
-    // Check if this is a restart
-    if (process.env.RESTART_CHANNEL && process.env.RESTART_MESSAGE) {
-        try {
-            // Add retry logic for fetching channel and message
-            let channel;
-            let retries = 0;
-            const maxRetries = 3;
+    try {
+        // Check for restart file
+        const restartInfo = JSON.parse(await fs.readFile(RESTART_FILE, 'utf8').catch(() => '{}'));
+        
+        if (restartInfo.channelId && restartInfo.messageId) {
+            const channel = await client.channels.fetch(restartInfo.channelId);
+            if (channel) {
+                const message = await channel.messages.fetch(restartInfo.messageId);
+                if (message) {
+                    const restartDuration = Math.floor((Date.now() - restartInfo.time) / 1000);
 
-            while (!channel && retries < maxRetries) {
-                try {
-                    channel = await client.channels.fetch(process.env.RESTART_CHANNEL);
-                } catch (error) {
-                    retries++;
-                    await wait(2000); // Wait 2 seconds between retries
+                    const successEmbed = new EmbedBuilder()
+                        .setColor('Green')
+                        .setTitle('✅ Bot Online')
+                        .setDescription(
+                            '**Status:**\n' +
+                            '• Restart completed successfully\n' +
+                            '• All systems operational\n\n' +
+                            `**Details:**\n` +
+                            `• Restart duration: ${restartDuration} seconds\n` +
+                            `• Requested by: ${restartInfo.requester || 'Unknown'}\n\n` +
+                            '**Ready:**\n' +
+                            '• Bot is now accepting commands'
+                        )
+                        .setTimestamp();
+
+                    await message.edit({ embeds: [successEmbed] });
+                    console.log('Restart completed successfully');
                 }
             }
 
-            if (!channel) {
-                console.error('Failed to fetch restart channel after retries');
-                return;
-            }
-
-            const message = await channel.messages.fetch(process.env.RESTART_MESSAGE);
-            const restartDuration = process.env.RESTART_TIME ? 
-                Math.floor((Date.now() - parseInt(process.env.RESTART_TIME)) / 1000) :
-                'Unknown';
-
-            const successEmbed = new EmbedBuilder()
-                .setColor('Green')
-                .setTitle('✅ Bot Online')
-                .setDescription(
-                    '**Status:**\n' +
-                    '• Restart completed successfully\n' +
-                    '• All systems operational\n\n' +
-                    `**Details:**\n` +
-                    `• Restart duration: ${restartDuration} seconds\n` +
-                    `• Requested by: ${process.env.RESTART_REQUESTER || 'Unknown'}\n\n` +
-                    '**Ready:**\n' +
-                    '• Bot is now accepting commands'
-                )
-                .setTimestamp();
-
-            await message.edit({ embeds: [successEmbed] });
-            console.log('Restart completed successfully');
-
-            // Clear restart variables
-            delete process.env.RESTART_CHANNEL;
-            delete process.env.RESTART_MESSAGE;
-            delete process.env.RESTART_TIME;
-            delete process.env.RESTART_REQUESTER;
-
-        } catch (error) {
-            console.error('Error during restart completion:', error);
+            // Delete the restart file
+            await fs.unlink(RESTART_FILE).catch(() => {});
         }
+    } catch (error) {
+        console.error('Error handling restart completion:', error);
     }
 });
 
@@ -114,3 +99,6 @@ app.listen(PORT, () => {
 
 // Add after creating the client
 client.cooldowns = new CooldownManager();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RESTART_FILE = path.join(__dirname, 'restart-info.json');

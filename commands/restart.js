@@ -1,4 +1,10 @@
 import { EmbedBuilder } from 'discord.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RESTART_FILE = path.join(__dirname, '..', 'restart-info.json');
 
 export default {
     name: 'restart',
@@ -36,11 +42,15 @@ export default {
 
             const statusMessage = await message.channel.send({ embeds: [embed] });
 
-            // Store message info for after restart
-            process.env.RESTART_CHANNEL = message.channel.id;
-            process.env.RESTART_MESSAGE = statusMessage.id;
-            process.env.RESTART_TIME = Date.now().toString();
-            process.env.RESTART_REQUESTER = message.author.tag;
+            // Store restart info in a file
+            const restartInfo = {
+                channelId: message.channel.id,
+                messageId: statusMessage.id,
+                time: Date.now(),
+                requester: message.author.tag
+            };
+
+            await fs.writeFile(RESTART_FILE, JSON.stringify(restartInfo, null, 2));
 
             // Update status before shutdown
             const updatedEmbed = new EmbedBuilder()

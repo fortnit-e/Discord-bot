@@ -1,4 +1,4 @@
-import { PermissionsBitField, EmbedBuilder, ChannelType } from 'discord.js';
+import { PermissionsBitField, EmbedBuilder, ChannelType, codeBlock } from 'discord.js';
 import { logError } from '../utils/errorLogger.js';
 
 const cooldowns = new Map();
@@ -443,13 +443,17 @@ export default {
                                 .setTitle('🎫 Server Invite')
                                 .setDescription('You have received a single-use invite link.')
                                 .addFields(
-                                    { name: 'Invite Link', value: invite.url },
-                                    { name: 'Details', value: '• Single-use only\n• Expires in 1 hour' }
+                                    { name: 'Invite Link', value: invite.url }
                                 )
                                 .setTimestamp();
 
-                            await user.send({ embeds: [inviteEmbed] });
-                            
+                            const dmMessage = await user.send({ 
+                                embeds: [inviteEmbed],
+                                content: codeBlock('yaml', 'Invite expires in: 60m 0s')
+                            });
+                            // Start countdown for 1 hour
+                            updateCountdown(dmMessage, Date.now() + 3600000);
+
                             const embed = new EmbedBuilder()
                                 .setColor('Green')
                                 .setTitle('Invite Created')
@@ -576,12 +580,16 @@ export default {
                                     .setTitle('🎫 Server Invite')
                                     .setDescription('You have received a single-use invite link.')
                                     .addFields(
-                                        { name: 'Invite Link', value: invite.url },
-                                        { name: 'Details', value: '• Single-use only\n• Expires in 1 hour' }
+                                        { name: 'Invite Link', value: invite.url }
                                     )
                                     .setTimestamp();
 
-                                await member.send({ embeds: [inviteEmbed] });
+                                const dmMessage = await member.send({ 
+                                    embeds: [inviteEmbed],
+                                    content: codeBlock('yaml', 'Invite expires in: 60m 0s')
+                                });
+                                // Start countdown for 1 hour
+                                updateCountdown(dmMessage, Date.now() + 3600000);
                                 console.log(`Successfully sent DM to ${member.user.tag}`);
                                 return true;
                             } catch (error) {

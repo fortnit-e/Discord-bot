@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { logError } from './errorLogger.js';
 
 export class YuniteAPI {
   constructor(apiKey) {
@@ -25,22 +26,21 @@ export class YuniteAPI {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Yunite API Error:', {
-          status: response.status,
-          endpoint,
-          error: data,
-          sentHeaders: headers
-        });
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+        error.status = response.status;
+        error.endpoint = endpoint;
+        throw error;
       }
 
       return data;
     } catch (error) {
-      console.error('Error making request to Yunite API:', {
-        endpoint,
-        error: error.message,
-        sentHeaders: headers
-      });
+      // Add context to the error
+      error.apiEndpoint = endpoint;
+      error.requestDetails = {
+        url,
+        method: options.method || 'GET',
+        headers: { ...headers, Authorization: '[REDACTED]' }
+      };
       throw error;
     }
   }

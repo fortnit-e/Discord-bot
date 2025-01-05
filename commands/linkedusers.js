@@ -1,5 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import { YuniteAPI } from '../utils/yuniteAPI.js';
+import { logError } from '../utils/errorLogger.js';
 
 export default {
     name: 'links',
@@ -34,8 +35,7 @@ export default {
                             name: 'Status',
                             value: epicId ? '✅ Linked' : '❌ Not Linked'
                         })
-                        .setThumbnail(user.displayAvatarURL())
-                        .setTimestamp();
+                        .setThumbnail(user.displayAvatarURL());
 
                     if (epicId) {
                         embed.addFields({
@@ -46,7 +46,12 @@ export default {
 
                     await loadingMsg.edit({ embeds: [embed] });
                 } catch (error) {
-                    console.error('Error checking user:', error);
+                    await logError(message.client, error, {
+                        command: 'links',
+                        user: message.author.tag,
+                        channel: message.channel.name,
+                        args: args.join(' ')
+                    });
                     await loadingMsg.edit('❌ Error: Could not check user link status.');
                 }
             } else {
@@ -69,12 +74,21 @@ export default {
 
                     await loadingMsg.edit({ embeds: [embed] });
                 } catch (error) {
-                    console.error('Error getting linked users:', error);
+                    await logError(message.client, error, {
+                        command: 'links',
+                        user: message.author.tag,
+                        channel: message.channel.name,
+                        args: 'total count'
+                    });
                     await loadingMsg.edit('❌ Error: Could not fetch linked users information.');
                 }
             }
         } catch (error) {
-            console.error('Error in links command:', error);
+            await logError(message.client, error, {
+                command: 'links',
+                user: message.author.tag,
+                channel: message.channel.name
+            });
             await message.reply('❌ An error occurred while checking link status.');
         }
     },

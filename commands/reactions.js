@@ -9,86 +9,66 @@ export default {
             // Get target channel
             const targetChannel = message.mentions.channels.first() || message.channel;
 
-            // Fetch latest messages with force cache refresh
-            const messages = await targetChannel.messages.fetch({ 
-                limit: 10,  // Fetch more messages to ensure we get the latest
-                cache: false // Force fresh fetch
-            });
+            // Fetch last 50 messages and find the first one with reactions
+            const messages = await targetChannel.messages.fetch({ limit: 50 });
+            const messageWithReactions = messages.find(msg => msg.reactions.cache.size > 0);
 
-            // Sort messages by timestamp and get the latest
-            const latestMessage = messages.sort((a, b) => b.createdTimestamp - a.createdTimestamp).first();
-
-            if (!latestMessage) {
-                return message.reply('❌ No messages found in the specified channel.');
+            if (!messageWithReactions) {
+                return message.reply('❌ No messages with reactions found in the last 50 messages.');
             }
 
-            // Force fetch the message to ensure reactions are up to date
-            const fetchedMessage = await targetChannel.messages.fetch(latestMessage.id);
-            
             // Debug logging
-            console.log('Latest message:', {
-                id: fetchedMessage.id,
-                content: fetchedMessage.content.slice(0, 50), // First 50 chars
-                reactionCount: fetchedMessage.reactions.cache.size,
-                reactions: Array.from(fetchedMessage.reactions.cache.values()).map(r => ({
+            console.log('Found message with reactions:', {
+                id: messageWithReactions.id,
+                content: messageWithReactions.content.slice(0, 50),
+                reactionCount: messageWithReactions.reactions.cache.size,
+                reactions: Array.from(messageWithReactions.reactions.cache.values()).map(r => ({
                     emoji: r.emoji.toString(),
                     count: r.count
                 }))
             });
-
-            if (fetchedMessage.reactions.cache.size === 0) {
-                return message.reply('❌ No reactions found on the latest message.');
-            }
 
             // Create embed
             const embed = new EmbedBuilder()
                 .setColor('#0099ff')
                 .setTitle('📊 Reaction Statistics')
                 .setDescription(
-                    `Latest message reactions in ${targetChannel}\n` +
-                    `Message Preview: \`${fetchedMessage.content.slice(0, 100)}${fetchedMessage.content.length > 100 ? '...' : ''}\``
+                    `Message reactions in ${targetChannel}\n` +
+                    `Message Preview: \`${messageWithReactions.content.slice(0, 100)}${messageWithReactions.content.length > 100 ? '...' : ''}\``
                 )
                 .addFields(
                     { 
                         name: 'Message Link', 
-                        value: `[Jump to Message](${fetchedMessage.url})`,
+                        value: `[Jump to Message](${messageWithReactions.url})`,
                         inline: false 
                     }
                 );
 
             // Get reaction counts
-            const reactionStats = [];
-            for (const reaction of fetchedMessage.reactions.cache.values()) {
+            for (const reaction of messageWithReactions.reactions.cache.values()) {
                 try {
                     // Fetch users who reacted
                     const users = await reaction.users.fetch();
-                    reactionStats.push({
-                        emoji: reaction.emoji.toString(),
-                        count: reaction.count,
-                        users: users.map(user => user.tag)
+                    const userList = users.map(user => user.tag).join('\n');
+                    
+                    embed.addFields({
+                        name: `${reaction.emoji.toString()} (${reaction.count})`,
+                        value: userList || 'No users found',
+                        inline: true
                     });
                 } catch (error) {
                     console.error(`Error fetching users for reaction ${reaction.emoji}:`, error);
-                    reactionStats.push({
-                        emoji: reaction.emoji.toString(),
-                        count: reaction.count,
-                        users: ['Unable to fetch users']
+                    embed.addFields({
+                        name: `${reaction.emoji.toString()} (${reaction.count})`,
+                        value: 'Unable to fetch users',
+                        inline: true
                     });
                 }
             }
 
-            // Add reaction statistics to embed
-            reactionStats.forEach(stat => {
-                embed.addFields({
-                    name: `${stat.emoji} (${stat.count})`,
-                    value: stat.users.join('\n') || 'No users found',
-                    inline: true
-                });
-            });
-
             // Add timestamp and message info
             embed.setFooter({ 
-                text: `Message sent at ${fetchedMessage.createdAt.toLocaleString()}`,
+                text: `Message sent at ${messageWithReactions.createdAt.toLocaleString()}`,
                 iconURL: message.author.displayAvatarURL()
             })
             .setTimestamp();
@@ -96,6 +76,7 @@ export default {
             await message.reply({ embeds: [embed] });
 
         } catch (error) {
+            console.error('Full error:', error); // Additional debug logging
             await logError(message.client, error, {
                 command: 'reactions',
                 user: message.author.tag,

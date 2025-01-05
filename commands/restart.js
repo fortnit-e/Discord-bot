@@ -1,4 +1,4 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType } from 'discord.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -24,16 +24,32 @@ export default {
         }
 
         try {
+            // Create confirmation buttons
+            const confirmButton = new ButtonBuilder()
+                .setCustomId('confirm_restart')
+                .setLabel('Confirm Restart')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🔄');
+
+            const cancelButton = new ButtonBuilder()
+                .setCustomId('cancel_restart')
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('✖️');
+
+            const row = new ActionRowBuilder()
+                .addComponents(confirmButton, cancelButton);
+
+            // Send confirmation message with buttons
             const embed = new EmbedBuilder()
                 .setColor('Yellow')
-                .setTitle('🔄 Bot Restart Sequence')
+                .setTitle('⚠️ Confirm Bot Restart')
                 .setDescription(
-                    '**Current Status:**\n' +
-                    '• Initiating restart sequence...\n' +
-                    '• Preparing for shutdown...\n\n' +
-                    '**Please Wait:**\n' +
-                    '• Bot will restart automatically\n' +
-                    '• This may take up to 60 seconds'
+                    '**Are you sure you want to restart the bot?**\n\n' +
+                    '**Note:**\n' +
+                    '• Bot will be offline briefly\n' +
+                    '• All commands will be unavailable during restart\n' +
+                    '• Restart process takes about 30-60 seconds'
                 )
                 .setFooter({ 
                     text: `Requested by ${message.author.tag}`,
@@ -41,42 +57,107 @@ export default {
                 })
                 .setTimestamp();
 
-            const statusMessage = await message.channel.send({ embeds: [embed] });
+            const confirmationMessage = await message.reply({
+                embeds: [embed],
+                components: [row]
+            });
 
-            // Store restart info in a file
-            const restartInfo = {
-                channelId: message.channel.id,
-                messageId: statusMessage.id,
-                time: Date.now(),
-                requester: message.author.tag
-            };
+            // Create button collector
+            const collector = confirmationMessage.createMessageComponentCollector({
+                componentType: ComponentType.Button,
+                time: 30000 // 30 seconds timeout
+            });
 
-            await fs.writeFile(RESTART_FILE, JSON.stringify(restartInfo, null, 2));
+            collector.on('collect', async (interaction) => {
+                // Check if the person who clicked is the same as who initiated
+                if (interaction.user.id !== message.author.id) {
+                    await interaction.reply({
+                        content: 'Only the person who initiated the restart can use these buttons.',
+                        ephemeral: true
+                    });
+                    return;
+                }
 
-            // Update status before shutdown
-            const updatedEmbed = new EmbedBuilder()
-                .setColor('Orange')
-                .setTitle('🔄 Bot Shutting Down')
-                .setDescription(
-                    '**Status Update:**\n' +
-                    '• Closing connections...\n' +
-                    '• Bot will restart shortly...\n\n' +
-                    '**Please Note:**\n' +
-                    '• Bot will be offline briefly\n' +
-                    '• Status will update when back online'
-                )
-                .setTimestamp();
+                // Disable buttons
+                row.components.forEach(button => button.setDisabled(true));
+                await interaction.update({ components: [row] });
 
-            await statusMessage.edit({ embeds: [updatedEmbed] });
-            
-            // Log the restart
-            console.log(`Bot restart initiated by ${message.author.tag} at ${new Date().toISOString()}`);
+                if (interaction.customId === 'confirm_restart') {
+                    const restartEmbed = new EmbedBuilder()
+                        .setColor('Orange')
+                        .setTitle('🔄 Bot Restart Sequence')
+                        .setDescription(
+                            '**Current Status:**\n' +
+                            '• Initiating restart sequence...\n' +
+                            '• Preparing for shutdown...\n\n' +
+                            '**Please Wait:**\n' +
+                            '• Bot will restart automatically\n' +
+                            '• This may take up to 60 seconds'
+                        )
+                        .setTimestamp();
 
-            // Properly destroy the client connection
-            await message.client.destroy();
-            
-            // Exit with error code to trigger Railway restart
-            process.exit(1);
+                    await interaction.message.edit({ embeds: [restartEmbed] });
+
+                    // Store restart info
+                    const restartInfo = {
+                        channelId: message.channel.id,
+                        messageId: interaction.message.id,
+                        time: Date.now(),
+                        requester: message.author.tag
+                    };
+
+                    await fs.writeFile(RESTART_FILE, JSON.stringify(restartInfo, null, 2));
+
+                    // Final update before shutdown
+                    const shutdownEmbed = new EmbedBuilder()
+                        .setColor('Red')
+                        .setTitle('🔄 Bot Shutting Down')
+                        .setDescription(
+                            '**Status Update:**\n' +
+                            '• Closing connections...\n' +
+                            '• Bot will restart shortly...\n\n' +
+                            '**Please Note:**\n' +
+                            '• Bot will be offline briefly\n' +
+                            '• Status will update when back online'
+                        )
+                        .setTimestamp();
+
+                    await interaction.message.edit({ embeds: [shutdownEmbed] });
+                    
+                    // Log the restart
+                    console.log(`Bot restart initiated by ${message.author.tag} at ${new Date().toISOString()}`);
+
+                    // Destroy client and exit
+                    await message.client.destroy();
+                    process.exit(1);
+
+                } else if (interaction.customId === 'cancel_restart') {
+                    const cancelEmbed = new EmbedBuilder()
+                        .setColor('Green')
+                        .setTitle('✅ Restart Cancelled')
+                        .setDescription('The bot restart has been cancelled.')
+                        .setTimestamp();
+
+                    await interaction.message.edit({ embeds: [cancelEmbed] });
+                }
+            });
+
+            // Handle collector end (timeout)
+            collector.on('end', async (collected, reason) => {
+                if (reason === 'time') {
+                    const timeoutEmbed = new EmbedBuilder()
+                        .setColor('Grey')
+                        .setTitle('⏰ Restart Cancelled')
+                        .setDescription('Restart confirmation timed out.')
+                        .setTimestamp();
+
+                    row.components.forEach(button => button.setDisabled(true));
+                    await confirmationMessage.edit({
+                        embeds: [timeoutEmbed],
+                        components: [row]
+                    });
+                }
+            });
 
         } catch (error) {
             await logError(message.client, error, {

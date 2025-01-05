@@ -9,7 +9,7 @@ export default {
       const commands = message.client.commands;
       
       const categories = {
-        MANAGEMENT: ['invite', 'restart'],
+        MANAGEMENT: ['invite', 'restart', 'kill'],
         LOBBY: ['lobby', 'close'],
         UTILITY: ['links', 'help', 'reactions', 'eval']
       };

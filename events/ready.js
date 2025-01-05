@@ -1,4 +1,4 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ActivityType } from 'discord.js';
 import { logError } from '../utils/errorLogger.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -7,6 +7,22 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESTART_FILE = path.join(__dirname, '..', 'restart-info.json');
 
+function updatePresence(client) {
+    let toggle = false;
+
+    setInterval(() => {
+        const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+        const totalServers = client.guilds.cache.size;
+
+        if (toggle) {
+            client.user.setActivity(`${totalUsers} users`, { type: ActivityType.Watching });
+        } else {
+            client.user.setActivity(`${totalServers} servers`, { type: ActivityType.Watching });
+        }
+        toggle = !toggle;
+    }, 20000); // 20 seconds
+}
+
 export default {
     name: 'ready',
     once: true,
@@ -14,8 +30,12 @@ export default {
         try {
             console.log(`Ready! Logged in as ${client.user.tag}`);
             
-            // Set bot status
-            client.user.setActivity('!help', { type: 'WATCHING' });
+            // Initialize presence
+            const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+            client.user.setActivity(`${totalUsers} users`, { type: ActivityType.Watching });
+            
+            // Start presence update cycle
+            updatePresence(client);
 
             // Check for restart file
             const restartInfo = JSON.parse(await fs.readFile(RESTART_FILE, 'utf8').catch(() => '{}'));

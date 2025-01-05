@@ -131,6 +131,44 @@ async function cleanupMessages(message, response, delay = 0) {
     }
 }
 
+async function updateCountdown(message, expirationTime) {
+    const embed = message.embeds[0];
+    let timeLeft = Math.max(0, expirationTime - Date.now());
+    
+    while (timeLeft > 0) {
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        
+        const countdownText = codeBlock('yaml', 
+            `Invite expires in: ${minutes}m ${seconds}s`
+        );
+
+        try {
+            await message.edit({ 
+                embeds: [embed], 
+                content: countdownText 
+            });
+        } catch (error) {
+            // Message was deleted or DM closed
+            break;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        timeLeft = Math.max(0, expirationTime - Date.now());
+    }
+
+    if (timeLeft <= 0) {
+        try {
+            await message.edit({
+                embeds: [embed],
+                content: codeBlock('yaml', 'Invite has expired')
+            });
+        } catch (error) {
+            // Message was deleted or DM closed
+        }
+    }
+}
+
 export default {
     name: 'invite',
     description: 'Manage invites for users',

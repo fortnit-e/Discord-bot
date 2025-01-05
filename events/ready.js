@@ -1,6 +1,11 @@
 import { EmbedBuilder } from 'discord.js';
 import { logError } from '../utils/errorLogger.js';
 import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RESTART_FILE = path.join(__dirname, '..', 'restart-info.json');
 
 export default {
     name: 'ready',

@@ -41,7 +41,7 @@ export default {
                 .addComponents(confirmButton, cancelButton);
 
             // Send confirmation message with buttons
-            const embed = new EmbedBuilder()
+            const initialEmbed = new EmbedBuilder()
                 .setColor('Yellow')
                 .setTitle('⚠️ Confirm Bot Restart')
                 .setDescription(
@@ -49,7 +49,9 @@ export default {
                     '**Note:**\n' +
                     '• Bot will be offline briefly\n' +
                     '• All commands will be unavailable during restart\n' +
-                    '• Restart process takes about 30-60 seconds'
+                    '• Restart process takes about 30-60 seconds\n\n' +
+                    '**Time Remaining:**\n' +
+                    '• 30 seconds'
                 )
                 .setFooter({ 
                     text: `Requested by ${message.author.tag}`,
@@ -58,17 +60,47 @@ export default {
                 .setTimestamp();
 
             const confirmationMessage = await message.reply({
-                embeds: [embed],
+                embeds: [initialEmbed],
                 components: [row]
             });
 
             // Create button collector
             const collector = confirmationMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
-                time: 30000 // 30 seconds timeout
+                time: 30000
             });
 
+            // Start countdown
+            let timeLeft = 30;
+            const countdown = setInterval(async () => {
+                timeLeft -= 5;
+                if (timeLeft > 0) {
+                    const updatedEmbed = new EmbedBuilder()
+                        .setColor('Yellow')
+                        .setTitle('⚠️ Confirm Bot Restart')
+                        .setDescription(
+                            '**Are you sure you want to restart the bot?**\n\n' +
+                            '**Note:**\n' +
+                            '• Bot will be offline briefly\n' +
+                            '• All commands will be unavailable during restart\n' +
+                            '• Restart process takes about 30-60 seconds\n\n' +
+                            '**Time Remaining:**\n' +
+                            `• ${timeLeft} seconds`
+                        )
+                        .setFooter({ 
+                            text: `Requested by ${message.author.tag}`,
+                            iconURL: message.author.displayAvatarURL()
+                        })
+                        .setTimestamp();
+
+                    await confirmationMessage.edit({ embeds: [updatedEmbed] });
+                }
+            }, 5000); // Update every 5 seconds
+
             collector.on('collect', async (interaction) => {
+                // Clear the countdown interval when a button is clicked
+                clearInterval(countdown);
+
                 // Check if the person who clicked is the same as who initiated
                 if (interaction.user.id !== message.author.id) {
                     await interaction.reply({
@@ -144,6 +176,9 @@ export default {
 
             // Handle collector end (timeout)
             collector.on('end', async (collected, reason) => {
+                // Clear the countdown interval when collector ends
+                clearInterval(countdown);
+
                 if (reason === 'time') {
                     const timeoutEmbed = new EmbedBuilder()
                         .setColor('Grey')

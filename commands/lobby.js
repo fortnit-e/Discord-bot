@@ -1,4 +1,5 @@
 import { ChannelType, PermissionsBitField, EmbedBuilder } from 'discord.js';
+import { logError } from '../utils/errorLogger.js';
 
 export default {
   name: 'lobby',
@@ -95,7 +96,12 @@ export default {
       message.client.cooldowns.setCooldown(message.author.id, 'lobby', cooldownTime);
 
     } catch (error) {
-      console.error('Error creating lobby channels:', error);
+      await logError(message.client, error, {
+        command: 'lobby',
+        user: message.author.tag,
+        channel: message.channel.name,
+        args: lobbyNumber
+      });
       await message.reply('There was an error setting up the lobby. Please try again.');
     }
   },

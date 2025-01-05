@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { logError } from '../utils/errorLogger.js';
 
 export default {
     name: 'stats',
@@ -21,7 +22,12 @@ export default {
 
             await message.reply({ embeds: [embed] });
         } catch (error) {
-            console.error('Error in stats command:', error);
+            await logError(message.client, error, {
+                command: 'stats',
+                user: message.author.tag,
+                channel: message.channel.name,
+                target: args[0] || 'self'
+            });
             await message.reply('❌ Could not fetch user stats.');
         }
     }

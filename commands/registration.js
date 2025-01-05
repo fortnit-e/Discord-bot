@@ -1,3 +1,5 @@
+import { EmbedBuilder } from 'discord.js';
+import { logError } from '../utils/errorLogger.js';
 import { YuniteAPI } from '../utils/yuniteAPI.js';
 
 export default {
@@ -6,7 +8,7 @@ export default {
   async execute(message, args) {
     try {
       // Initialize the Yunite API with your API key
-      const yunite = new YuniteAPI(process.env.YUNITE_API_KEY);
+      const yunite = new YuniteAPI(process.env.YUNITE_API_KEY, message.client);
 
       // Get the guild ID from the message
       const guildId = message.guild.id;
@@ -22,8 +24,13 @@ export default {
       });
 
     } catch (error) {
-      console.error('Error fetching registration data:', error);
-      await message.reply('There was an error fetching the registration data from Yunite.');
+      await logError(message.client, error, {
+        command: 'registration',
+        user: message.author.tag,
+        channel: message.channel.name,
+        args: args.join(' ')
+      });
+      await message.reply('❌ An error occurred during registration.');
     }
   },
 };

@@ -1,4 +1,6 @@
 import { YuniteAPI } from '../utils/yuniteAPI.js';
+import { EmbedBuilder } from 'discord.js';
+import { logError } from '../utils/errorLogger.js';
 
 export default {
   name: 'epicid',
@@ -20,8 +22,13 @@ export default {
         await message.reply(`No Epic ID found for ${targetUser.username}. They may not be linked.`);
       }
     } catch (error) {
-      console.error('Error fetching Epic ID:', error);
-      await message.reply(`An error occurred while fetching the Epic ID: ${error.message}`);
+      await logError(message.client, error, {
+        command: 'epicid',
+        user: message.author.tag,
+        channel: message.channel.name,
+        args: args.join(' ')
+      });
+      await message.reply('❌ An error occurred while fetching the Epic ID.');
     }
   },
 };

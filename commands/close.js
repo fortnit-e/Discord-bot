@@ -1,4 +1,5 @@
 import { ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, EmbedBuilder } from 'discord.js';
+import { logError } from '../utils/errorLogger.js';
 
 export default {
   name: 'close',
@@ -144,8 +145,12 @@ export default {
       });
 
     } catch (error) {
-      console.error('Error in close command:', error);
-      await message.reply('An error occurred while executing the close command.');
+      await logError(message.client, error, {
+        command: 'close',
+        user: message.author.tag,
+        channel: message.channel.name
+      });
+      await message.reply('❌ An error occurred while trying to close the lobby.');
     }
   },
 }; 

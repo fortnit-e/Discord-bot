@@ -2,8 +2,9 @@ import fetch from 'node-fetch';
 import { logError } from './errorLogger.js';
 
 export class YuniteAPI {
-  constructor(apiKey) {
+  constructor(apiKey, client) {
     this.apiKey = apiKey;
+    this.client = client;
     this.baseURL = 'https://yunite.xyz/api/v3';
   }
 
@@ -34,13 +35,12 @@ export class YuniteAPI {
 
       return data;
     } catch (error) {
-      // Add context to the error
-      error.apiEndpoint = endpoint;
-      error.requestDetails = {
-        url,
+      await logError(this.client, error, {
+        command: 'Yunite API',
+        endpoint: endpoint,
         method: options.method || 'GET',
-        headers: { ...headers, Authorization: '[REDACTED]' }
-      };
+        error: error.message
+      });
       throw error;
     }
   }
@@ -137,7 +137,12 @@ export class YuniteAPI {
       const index = discordIds.userIds.indexOf(discordId);
       return index !== -1 ? epicIds.userIds[index] : null;
     } catch (error) {
-      console.error('Error getting Epic ID:', error);
+      await logError(this.client, error, {
+        command: 'Yunite getEpicIdForUser',
+        guildId: guildId,
+        discordId: discordId,
+        error: error.message
+      });
       throw error;
     }
   }

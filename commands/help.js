@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { logError } from '../utils/errorLogger.js';
 
 export default {
   name: 'help',
@@ -27,7 +28,11 @@ export default {
       await message.reply({ embeds: [helpEmbed] });
       
     } catch (error) {
-      console.error('Error in help command:', error);
+      await logError(message.client, error, {
+        command: 'help',
+        user: message.author.tag,
+        channel: message.channel.name
+      });
       await message.reply('❌ An error occurred while showing the help menu.');
     }
   },

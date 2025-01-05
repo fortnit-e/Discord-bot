@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logError } from '../utils/errorLogger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESTART_FILE = path.join(__dirname, '..', 'restart-info.json');
@@ -78,7 +79,11 @@ export default {
             process.exit(1);
 
         } catch (error) {
-            console.error('Error in restart command:', error);
+            await logError(message.client, error, {
+                command: 'restart',
+                user: message.author.tag,
+                channel: message.channel.name
+            });
             await message.reply('❌ An error occurred while trying to restart the bot.');
         }
     },

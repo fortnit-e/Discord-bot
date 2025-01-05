@@ -17,20 +17,16 @@ export default {
         }
 
         try {
-            // Send initial status message
             const embed = new EmbedBuilder()
                 .setColor('Yellow')
                 .setTitle('🔄 Bot Restart Sequence')
                 .setDescription(
                     '**Current Status:**\n' +
                     '• Initiating restart sequence...\n' +
-                    '• Saving current state...\n\n' +
-                    '**Important:**\n' +
-                    '• Please wait while Railway redeploys the bot\n' +
-                    '• This may take 1-2 minutes\n\n' +
-                    '**Troubleshooting:**\n' +
-                    '• If bot is offline > 3 minutes, check Railway dashboard\n' +
-                    '• Contact administrator if issues persist'
+                    '• Preparing for shutdown...\n\n' +
+                    '**Please Wait:**\n' +
+                    '• Bot will restart automatically\n' +
+                    '• This may take up to 60 seconds'
                 )
                 .setFooter({ 
                     text: `Requested by ${message.author.tag}`,
@@ -40,39 +36,36 @@ export default {
 
             const statusMessage = await message.channel.send({ embeds: [embed] });
 
-            // Update status to shutting down
-            setTimeout(async () => {
-                const updatedEmbed = new EmbedBuilder()
-                    .setColor('Orange')
-                    .setTitle('🔄 Bot Shutting Down')
-                    .setDescription(
-                        '**Status Update:**\n' +
-                        '• Bot is shutting down...\n' +
-                        '• Waiting for Railway redeploy...\n\n' +
-                        '**Please Note:**\n' +
-                        '• Bot will be offline briefly\n' +
-                        '• Status will update when back online'
-                    )
-                    .setFooter({ 
-                        text: `Requested by ${message.author.tag}`,
-                        iconURL: message.author.displayAvatarURL()
-                    })
-                    .setTimestamp();
+            // Store message info for after restart
+            process.env.RESTART_CHANNEL = message.channel.id;
+            process.env.RESTART_MESSAGE = statusMessage.id;
+            process.env.RESTART_TIME = Date.now().toString();
+            process.env.RESTART_REQUESTER = message.author.tag;
 
-                await statusMessage.edit({ embeds: [updatedEmbed] });
+            // Update status before shutdown
+            const updatedEmbed = new EmbedBuilder()
+                .setColor('Orange')
+                .setTitle('🔄 Bot Shutting Down')
+                .setDescription(
+                    '**Status Update:**\n' +
+                    '• Closing connections...\n' +
+                    '• Bot will restart shortly...\n\n' +
+                    '**Please Note:**\n' +
+                    '• Bot will be offline briefly\n' +
+                    '• Status will update when back online'
+                )
+                .setTimestamp();
 
-                // Store message info
-                process.env.RESTART_CHANNEL = message.channel.id;
-                process.env.RESTART_MESSAGE = statusMessage.id;
-                process.env.RESTART_TIME = Date.now().toString();
-                process.env.RESTART_REQUESTER = message.author.tag;
+            await statusMessage.edit({ embeds: [updatedEmbed] });
+            
+            // Log the restart
+            console.log(`Bot restart initiated by ${message.author.tag} at ${new Date().toISOString()}`);
 
-                // Exit after ensuring message is updated
-                setTimeout(() => {
-                    console.log(`Bot restart initiated by ${message.author.tag} at ${new Date().toISOString()}`);
-                    process.exit(0);
-                }, 1000);
-            }, 3000);
+            // Properly destroy the client connection
+            await message.client.destroy();
+            
+            // Exit with error code to trigger Railway restart
+            process.exit(1);
 
         } catch (error) {
             console.error('Error in restart command:', error);

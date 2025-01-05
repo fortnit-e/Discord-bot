@@ -11,7 +11,7 @@ export default {
       const categories = {
         MANAGEMENT: ['invite', 'restart'],
         LOBBY: ['lobby', 'close'],
-        UTILITY: ['links', 'help']
+        UTILITY: ['links', 'help', 'reactions']
       };
 
       const helpEmbed = new EmbedBuilder()
